@@ -1,4 +1,4 @@
-name: Java CI with Maven and MySQL
+name: Java CI with Maven and H2 Database
 
 on:
   push:
@@ -9,23 +9,8 @@ on:
 
 jobs:
   build:
-    name: Java CI with Maven and MySQL
+    name: Java CI with Maven and H2
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_ROOT_PASSWORD: Komal@321
-          MYSQL_DATABASE: testdb
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-          --health-start-period=10s
 
     steps:
       - name: Checkout repository
@@ -44,15 +29,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-
-      - name: Wait for MySQL to be ready
-        env:
-          MYSQL_ROOT_PASSWORD: Komal@321
-        run: |
-          until mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent; do
-            echo "Waiting for MySQL to be ready..."
-            sleep 5
-          done
 
       - name: Build and Test with Maven
         run: mvn clean verify
