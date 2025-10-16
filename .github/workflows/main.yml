@@ -18,73 +18,64 @@ jobs:
 
     runs-on: ubuntu-latest
  
+    name: Java CI with Maven and MySQL
+ 
+on:
+
+  push:
+
+    branches: [ main ]
+
+  pull_request:
+
+    branches: [ main ]
+
+  workflow_dispatch: {}
+ 
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+ 
     services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - 3306:3306
+    env:
+      MYSQL_ROOT_PASSWORD: Komal@321
+      MYSQL_DATABASE: testdb
+    # CRUCIAL FIX: Flattening the options into a single string 
+    # resolves the "invalid reference format" Docker error.
+    options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=3 --health-start-period=10s
 
-      mysql:
+steps:
+- uses: actions/checkout@v2
 
-        image: mysql:8.0
+- name: Set up JDK 21
+  uses: actions/setup-java@v3
+  with:
+    distribution: 'temurin'
+    java-version: 21
 
-        ports:
+- name: Cache Maven packages
+  uses: actions/cache@v3
+  with:
+    path: ~/.m2/repository
+    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+    restore-keys: |
+      ${{ runner.os }}-maven-
 
-          - 3306:3306
+- name: Wait for MySQL to be ready
+  # We explicitly pass the root user and password for the health check.
+  run: |
+    password="${{ env.MYSQL_ROOT_PASSWORD }}"
+    # Use the published port on localhost
+    until mysqladmin ping -h 127.0.0.1 -u root -p"$password" --silent; do
+      echo "Waiting for MySQL to be ready..."
+      sleep 5
+    done
 
-        env:
-
-          MYSQL_ROOT_PASSWORD: Komal@321
-
-          MYSQL_DATABASE: testdb
-
-        options: >-
-
-          --health-cmd="mysqladmin ping --silent"
-
-          --health-interval=10s
-
-          --health-timeout=5s
-
-          --health-retries=3
- 
-    steps:
-
-    - uses: actions/checkout@v2
- 
-    - name: Set up JDK 21
-
-      uses: actions/setup-java@v3
-
-      with:
-
-        distribution: 'temurin'
-
-        java-version: 21
- 
-    - name: Cache Maven packages
-
-      uses: actions/cache@v3
-
-      with:
-
-        path: ~/.m2/repository
-
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-
-        restore-keys: |
-
-          ${{ runner.os }}-maven-
- 
-    - name: Wait for MySQL to be ready
-
-      run: |
-
-        until mysqladmin ping -h 127.0.0.1 --silent; do
-
-          echo "Waiting for MySQL to be ready..."
-
-          sleep 5
-
-        done
- 
-    - name: Build and Test with Maven
-
-      run: mvn clean verify
- 
+- name: Build and Test with Maven
+  run: mvn clean verify
